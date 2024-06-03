@@ -25,15 +25,35 @@ async function run() {
 
     const menuCollections = client.db('bistroBoss').collection('menu');
     const reviewCollections = client.db('bistroBoss').collection('reviews');
+    const cartCollections = client.db('bistroBoss').collection('carts');
 
-    app.get('/menu', async(req, res) => {
-        const result = await menuCollections.find().toArray();
-        res.send(result);
+    app.get('/menu', async (req, res) => {
+      const result = await menuCollections.find().toArray();
+      res.send(result);
     })
 
-    app.get('/reviews', async(req, res) => {
-        const result = await reviewCollections.find().toArray();
-        res.send(result);
+    app.get('/reviews', async (req, res) => {
+      const result = await reviewCollections.find().toArray();
+      res.send(result);
+    })
+
+    app.get('/carts', async (req, res) => {
+      const email = req.query.email;
+      // console.log(email);
+      // const query = {email: email}
+      if (!email) {
+        return res.send([]);
+      }
+      const result = await cartCollections.find({ email: email }).sort({entryDate: -1}).toArray();
+      res.send(result);
+    })
+
+    app.post('/carts', async (req, res) => {
+      const item = req.body;
+      const entryDate = new Date();
+      item.entryDate = entryDate;
+      const result = await cartCollections.insertOne(item);
+      res.send(result)
     })
 
     // Send a ping to confirm a successful connection
@@ -47,9 +67,9 @@ async function run() {
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
-    res.send('Bistro Boss Restaurant Server is Running');
+  res.send('Bistro Boss Restaurant Server is Running');
 })
 
 app.listen(port, () => {
-    console.log(`Bistro Boss Restaurant Server is Running Port: ${port}`);
+  console.log(`Bistro Boss Restaurant Server is Running Port: ${port}`);
 })
