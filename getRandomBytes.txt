@@ -1,0 +1,6 @@
+Got to terminal
+1st step 'clear' your terminal
+2nd step type  'node' and entry
+3rd type require('crypto').randomBytes(64).toString('hex') then entry
+
+4th step type Ctrl+C
