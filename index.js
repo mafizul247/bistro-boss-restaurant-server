@@ -195,10 +195,61 @@ async function run() {
     app.post('/payments', verifyJWT, async (req, res) => {
       const payment = req.body;
       const insertResult = await paymentCollections.insertOne(payment);
-      const query = { _id: {$in: payment.cartItemId?.map(id => new ObjectId(id)) } };
+      const query = { _id: { $in: payment.cartItemId?.map(id => new ObjectId(id)) } };
       const deleteResult = await cartCollections.deleteMany(query);
 
-      res.send({insertResult, deleteResult});
+      res.send({ insertResult, deleteResult });
+    })
+
+    // Dashboard
+    app.get('/admin-stats', verifyJWT, verifyAdmin, async (req, res) => {
+      const products = await menuCollections.estimatedDocumentCount();
+      const orders = await paymentCollections.estimatedDocumentCount();
+
+      const users = await userCollections.find().toArray();
+      const findCustomers = users?.filter(user => user.role === 'user');
+      const customers = findCustomers?.length;
+
+      const paymentReceive = await paymentCollections.find().toArray();
+      const revenue = paymentReceive?.reduce((sum, item) => sum + item.price, 0);
+
+      res.send({ products, orders, customers, revenue })
+    })
+
+    // TODO Incomplete data
+    app.get('/order-stats', async (req, res) => {
+      const pipeline = [
+        {
+          $lookup: {
+            from: 'menu',
+            localField: 'menuItems',
+            foreignField: '_id',
+            as: 'menuItemsData'
+          }
+        },
+        {
+          $unwind: '$menuItemsData'
+        },
+        {
+          $group: {
+            _id: '$menuItemsData.category',
+            count: { $sum: 1 },
+            total: { $sum: '$menuItemsData.price' }
+          }
+        },
+        {
+          $project: {
+            category: '$_id',
+            count: 1,
+            total: { $round: ['$total', 2] },
+            _id: 0
+          }
+        }
+      ];
+      // console.log(pipeline);
+      const result = await paymentCollections.aggregate(pipeline).toArray()
+      res.send(result);
+      // console.log(result);
     })
 
     // Send a ping to confirm a successful connection
