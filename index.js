@@ -264,7 +264,63 @@ async function run() {
       res.send({ products, orders, customers, revenue })
     })
 
-    // TODO Incomplete data
+    /**
+    * ---------------
+    * BANGLA SYSTEM(second best solution)
+    * ---------------
+    * 1. load all payments
+    * 2. for each payment, get the menuItems array
+    * 3. for each item in the menuItems array get the menuItem from the menu collection
+    * 4. put them in an array: allOrderedItems
+    * 5. separate allOrderedItems by category using filter
+    * 6. now get the quantity by using length: pizzas.length
+    * 7. for each category use reduce to get the total amount spent on this category
+    * 
+   */
+
+    app.get('/order-stats', verifyJWT, verifyAdmin, async (req, res) => {
+      const payments = await paymentCollections.find().toArray();
+
+      // Step 2: Get all menu items
+      const menuItems = await menuCollections.find().toArray();
+
+      // Step 3: Create a map for fast lookup of menu items by ID
+      const menuMap = new Map(menuItems.map(item => [item._id.toString(), item]));
+
+      // Step 4: Collect all ordered items
+      const allOrderedItems = [];
+
+      // Iterate through payments to populate allOrderedItems
+      payments.forEach(payment => {
+        payment.menuItems.forEach(itemId => {
+          const menuItem = menuMap.get(itemId.toString());
+          if (menuItem) {
+            allOrderedItems.push(menuItem);
+          }
+        });
+      });
+
+      // Step 5: Separate allOrderedItems by category
+      const itemsByCategory = allOrderedItems.reduce((acc, item) => {
+        if (!acc[item.category]) {
+          acc[item.category] = [];
+        }
+        acc[item.category].push(item);
+        return acc;
+      }, {});
+
+      // Step 6 & 7: Calculate quantity and total amount spent for each category
+      const result = Object.entries(itemsByCategory).map(([category, items]) => {
+        const quantity = items.length; // Total items in this category
+        const totalRevenue = items.reduce((sum, item) => sum + item.price, 0); // Total revenue for this category
+        const revenue = parseFloat(totalRevenue.toFixed(2));
+        return { category, quantity, revenue };
+      });
+      res.send(result)
+      // console.log(result);
+    })
+
+    /* // TODO Incomplete data
     app.get('/order-stats', async (req, res) => {
       const pipeline = [
         {
@@ -298,7 +354,56 @@ async function run() {
       const result = await paymentCollections.aggregate(pipeline).toArray()
       res.send(result);
       // console.log(result);
-    })
+    }) */
+
+    // its working 
+
+
+    // order status
+    /**
+     * ----------------------------
+     *    NON-Efficient Way
+     * ------------------------------
+     * 1. load all the payments
+     * 2. for every menuItemIds (which is an array), go find the item from menu collection
+     * 3. for every item in the menu collection that you found from a payment entry (document)
+    */
+
+    // using aggregate pipeline
+    /* app.get('/order-stats-new', async (req, res) => {
+      const pipeline = [
+        {
+          $lookup: {
+            from: 'menu',
+            localField: 'menuItems',
+            foreignField: '_id',
+            as: 'menuItemsData'
+          }
+        },
+        {
+          $unwind: '$menuItemsData'
+        },
+        {
+          $group: {
+            _id: '$menuItemsData.category',
+            count: { $sum: 1 },
+            total: { $sum: '$menuItemsData.price' }
+          }
+        },
+        {
+          $project: {
+            category: '$_id',
+            count: 1,
+            total: { $round: ['$total', 2] },
+            _id: 0
+          }
+        }
+      ];
+
+      const result = await paymentCollections.aggregate(pipeline).toArray()
+      res.send(result)
+
+    }) */
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
