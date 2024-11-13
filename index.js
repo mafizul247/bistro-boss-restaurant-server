@@ -166,9 +166,27 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/menu/:id', verifyJWT, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await menuCollections.findOne(query);
+      res.send(result);
+    })
+
     app.post('/menu', verifyJWT, verifyAdmin, async (req, res) => {
       const item = req.body;
       const result = await menuCollections.insertOne(item);
+      res.send(result);
+    })
+
+    app.patch('/menu/:id', verifyJWT, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const item = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updateItem = {
+        $set: { ...item }
+      };
+      const result = await menuCollections.updateOne(query, updateItem);
       res.send(result);
     })
 
@@ -237,6 +255,12 @@ async function run() {
     })
 
     //Payment 
+    app.get('/payments', verifyJWT, verifyAdmin, async (req, res) => {
+      const filter = { date: -1 };
+      const result = await paymentCollections.find().sort(filter).toArray();
+      res.send(result);
+    })
+
     app.post('/payments', verifyJWT, async (req, res) => {
       const payment = req.body;
       const insertResult = await paymentCollections.insertOne(payment);
